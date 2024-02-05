@@ -9,14 +9,15 @@ This is the only part of the code that is spesific to the [data set](https://dat
 # Discovery
 For this project i mostly wanted to investigate the applicatbility of process mining to attain information on state to state interatctions through the medium of DFGs(Directly Follows Graph), however for this type of data the only real Cases we have is the Case of all actions form one contry to another. The issue i ran into with normal DFG's is that it would not connect events that happend perhapse a few events appart, which in this context makes little sence as any given event is likly causly linked to the next couple of events not just the one directly following it. To circumvent this issue i created the eventually follows in graph (EFIG) that connects each event to all events that happen within x days of said event.
 
-Actions reaction graph USA->DEU
-![image](https://github.com/sashamorecode/Geopolitics-Process-Mining/assets/34610924/62997780-4fb9-4326-a764-479d175eae1f)
+EFIG USA->DEU
+![image](https://github.com/sashamorecode/Geopolitics-Process-Mining/assets/34610924/62d2b959-2f45-4105-92f7-a09cdaf103be)
 
 But this is still only connecting actions form state A->B, showing only how contry A's prior actions towards B effect contry A's later actions towards B when what I really wanted was to create action reaction graphs where actions A->B would be connected with acitons B->A. So I crated get_action_reaction_graph which also implements EFIG but instead connects actions to later reactions, instead on later actions. And if we want the full picture we can use merge_action_reaction_graphs to merge action reaction A->B with action reaction graph B->A to get a full picture of the contries interactions.
 
+Actions reaction graph USA->DEU
+![image](https://github.com/sashamorecode/Geopolitics-Process-Mining/assets/34610924/62997780-4fb9-4326-a764-479d175eae1f)
 Merged Action Reaction graphs USA<->DEU
 ![image](https://github.com/sashamorecode/Geopolitics-Process-Mining/assets/34610924/96eff09c-3e35-480b-80c7-630f99000679)
-
 You can even chain these action reaction graphs although it quickly gets to messy to interpret.
 ![image](https://github.com/sashamorecode/Geopolitics-Process-Mining/assets/34610924/66fe4858-bf95-4613-b441-43ced6c076b5)
 
