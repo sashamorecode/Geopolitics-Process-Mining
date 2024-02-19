@@ -35,5 +35,3 @@ so we can see how much percent of the incoming transitions each transition repre
 
 ## Reduction
 Finnaly i also created some functions to clear out noise and give a clear picture as i was getting very messy densly conected graphs as almost every node is connected to each other node at least once especialy for EFIG's. The two reductions are min thresh wich simply removes any edge under a given value and max path denoise which for each node only retains the largest in edge and the largest out edge.
-
-PS i am student and cannot vouch for the validity of the code, use at your own peril
