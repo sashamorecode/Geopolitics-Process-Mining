@@ -5,11 +5,15 @@ I build this PM4PY extension to solve some problems that i was having trying to 
 
 ## Interactive graph explorer
 
-Run this from the repository root and open the [graph explorer](http://localhost:8000).
+[Open the graph explorer on GitHub Pages](https://sashamorecode.github.io/Geopolitics-Process-Mining/).
+
+To run it locally, start the server from the repository root and open [localhost:8000](http://localhost:8000).
 
 ```sh
 python3 -m http.server 8000 --bind 127.0.0.1 --directory explorer/dist
 ```
+
+GitHub Pages serves the root of the `gh-pages` branch. To publish committed explorer changes from `main`, run `node --test explorer/test/*.test.mjs && git subtree push --prefix explorer/dist origin gh-pages`.
 
 Select a dataset, directed country pair, inclusive year range, and CAMEO action types. The graph and transition table update as you change the controls. Switch between directly-follows, eventually-follows, and action–reaction graphs, or adjust the time window, normalization, and minimum edge weight. Select an action or transition to inspect it. The table includes all matching transitions, including those beyond the graph’s display limit.
 
