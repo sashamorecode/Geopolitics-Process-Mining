@@ -1,0 +1,191 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Geopolitical process explorer</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main>
+      <div class="controls">
+        <section aria-labelledby="filterTitle">
+          <div class="section-head">
+            <h2 id="filterTitle">Event filters</h2>
+            <button class="link" id="reset">Reset</button>
+          </div>
+          <div class="filter-grid">
+            <label class="dataset">Dataset<select autocomplete="off" id="dataset"></select></label>
+            <div class="dates">
+              <label>From year<select autocomplete="off" id="start"></select></label
+              ><label>To year<select autocomplete="off" id="end"></select></label>
+            </div>
+            <div class="countries">
+              <label>Source country<select autocomplete="off" id="source"></select></label
+              ><button
+                id="swap"
+                aria-label="Swap countries"
+                title="Swap countries"
+              >
+                ⇄</button
+              ><label>Target country<select autocomplete="off" id="target"></select></label>
+            </div>
+            <div id="chainControls" hidden>
+              <div id="chainCountries"></div>
+              <button class="link" id="addCountry" type="button">Add country</button>
+              <label class="check"><input autocomplete="off" id="closeChain" type="checkbox" />Close the loop</label>
+            </div>
+            <label class="check" id="bothLabel" hidden><input autocomplete="off" id="bothDirections" type="checkbox" />Both directions</label>
+          </div>
+        </section>
+        <section aria-labelledby="configTitle">
+          <div class="section-head">
+            <h2 id="configTitle">Graph settings <button class="help-trigger" type="button" aria-label="About graph settings" aria-describedby="settingsHelp">?</button></h2>
+          </div>
+          <div class="config-grid">
+            <label
+              >Graph mode<select autocomplete="off" id="mode" aria-describedby="modeHelp">
+                <option value="direct">Directly follows</option>
+                <option value="eventual">Eventually follows</option>
+                <option value="reaction">Action–reaction</option>
+                <option value="chain">Chained action–reaction</option>
+              </select></label
+            >
+            <label class="window-control"
+              >Time window (days)<input autocomplete="off"
+                id="days" aria-describedby="modeHelp"
+                type="number"
+                min="1"
+                step="1"
+                required
+                value="30"
+                disabled
+            /></label>
+            <label
+              >Normalization<select autocomplete="off" id="norm" aria-describedby="weightHelp">
+                <option value="none">Raw counts</option>
+                <option value="source">By source</option>
+                <option value="target">By target</option>
+              </select></label
+            >
+            <div>
+              <label for="weight">Minimum weight</label>
+              <div class="weight-control">
+                <input autocomplete="off" id="weight" type="number" min="0" required
+                       step="any" aria-describedby="weightHelp" value="0" />
+                <button id="weightDown" type="button" aria-label="Decrease minimum weight by 0.1">−</button>
+                <button id="weightUp" type="button" aria-label="Increase minimum weight by 0.1">+</button>
+              </div>
+            </div>
+            <div class="limit-control">
+              <label for="limit">Actions shown <output id="limitValue" for="limit">8</output></label>
+              <input autocomplete="off" id="limit" type="range" min="2" max="20" step="1" value="8" aria-describedby="limitHelp" />
+            </div>
+            <label class="check denoise"
+              ><input autocomplete="off" type="checkbox" id="denoise" aria-describedby="denoiseHelp" />Denoise transitions</label
+            >
+          </div>
+          <div id="decayControl" hidden>
+            <label class="check"><input autocomplete="off" id="timeDecay" type="checkbox" />Weight closer events more heavily</label>
+            <label id="halfLifeControl" hidden>Half-life (days)
+              <input autocomplete="off" id="halfLifeDays" type="number" min="0" step="any" required />
+            </label>
+            <figure class="lag-figure">
+              <figcaption id="lagCaption"></figcaption>
+              <svg id="lagPlot" viewBox="0 0 320 78" role="img" aria-labelledby="lagCaption lagDescription">
+                <desc id="lagDescription"></desc>
+                <path d="M36 8V52H312 M36 30H312" fill="none" stroke="#d9dfd6"/>
+                <text x="31" y="12" text-anchor="end">100%</text>
+                <text x="31" y="34" text-anchor="end">50%</text>
+                <text x="31" y="56" text-anchor="end">0%</text>
+                <line id="windowMark" y1="8" y2="52" stroke="#88988d"/>
+                <polyline id="lagTail" fill="none" stroke="#64736b" stroke-width="2" stroke-dasharray="4 3"/>
+                <polyline id="lagLine" fill="none" stroke="#24654d" stroke-width="2.5" stroke-linecap="round"/>
+                <circle id="halfMark" cy="30" r="3" fill="#24654d" />
+                <text id="firstLag" x="36" y="70"></text>
+                <text id="lastLag" x="312" y="70" text-anchor="end"></text>
+              </svg>
+              <span id="lagWindowNote" hidden></span>
+            </figure>
+          </div>
+          <div hidden>
+            <p id="settingsHelp"></p>
+            <p id="limitHelp">Maximum number of action nodes drawn. The transition table includes every edge that meets your filters.</p>
+            <p id="modeHelp"></p>
+            <p id="weightHelp"></p>
+            <p id="denoiseHelp">Denoising keeps the strongest incoming and outgoing transitions for each action, including ties. Self-loops are excluded.</p>
+          </div>
+        </section>
+      </div>
+      <div class="workspace">
+        <section class="actions">
+          <div class="section-head">
+            <h2>Action types <button class="help-trigger" type="button" aria-label="About action types" aria-describedby="actionHelp">?</button></h2>
+            <div>
+              <button class="link" id="all">All</button
+              ><button class="link" id="clear">Clear</button>
+            </div>
+          </div>
+          <p id="actionHelp" hidden>Only checked actions enter the event sequence.</p>
+          <div id="choices"></div>
+        </section>
+        <section class="panel">
+          <div class="panel-head">
+            <div>
+              <h1 id="pair">Event network</h1>
+              <p id="metadata" aria-live="polite">Loading dataset…</p>
+            </div>
+            <div class="tabs" role="group" aria-label="Display">
+              <button class="tab active" id="graphTab" aria-pressed="true">
+                <i data-icon="network"></i>Graph</button
+              ><button class="tab" id="tableTab" aria-pressed="false">
+                <i data-icon="table"></i>Table
+              </button>
+            </div>
+          </div>
+          <p id="graphHelp" hidden>Larger circles mean more events. Each arrow shows its weight to two significant figures. Thicker arrows have higher weights. Select a circle to open its incoming and outgoing transitions on the right, including those beyond the graph’s display limit.</p>
+          <div id="graphLayout">
+            <div id="canvas">
+              <svg
+                id="network"
+                role="group"
+                aria-label="Interactive event network"
+                viewBox="0 0 900 440"
+              ></svg>
+              <div id="status" role="status">Loading graph…</div>
+              <div class="zoom">
+                <button id="plus" aria-label="Zoom in">+</button
+                ><button id="minus" aria-label="Zoom out">−</button
+                ><button id="fit" aria-label="Fit graph">
+                  <i data-icon="fit"></i>
+                </button>
+              </div>
+              <div id="inspection" hidden></div>
+            </div>
+            <aside id="nodeDetails" hidden aria-labelledby="nodeTitle">
+              <div class="section-head">
+                <h2 id="nodeTitle"></h2>
+                <button id="closeNode">Close</button>
+              </div>
+              <div class="node-context"><span id="nodeContext"></span><button class="help-trigger" type="button" aria-label="About transition counts and weights" aria-describedby="nodeHelp">?</button></div>
+              <p id="nodeHelp" hidden></p>
+              <div id="nodeTables"></div>
+            </aside>
+          </div>
+          <div id="tableWrap" hidden></div>
+          <footer>
+            <span class="legend"><b class="dot"></b> Action type</span
+            ><span class="legend"><i data-icon="arrow"></i> Transition <button class="help-trigger" type="button" aria-label="How to read the graph" aria-describedby="graphHelp">?</button></span
+            ><span id="summary"></span>
+          </footer>
+        </section>
+      </div>
+      <p class="citation">
+        <span id="citation"></span>
+        <a id="sourceLink" target="_blank" rel="noreferrer">Dataset source ↗</a>
+      </p>
+    </main>
+    <div id="helpTip" popover="manual" aria-hidden="true"></div>
+    <script type="module" src="./app.js"></script>
+  </body>
+</html>

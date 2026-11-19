@@ -1,5 +1,6 @@
+from pandas import DataFrame
 import pm4py
-from pm4pyExtension.algo.discovery.efig import get_eventually_follows_in_days_graph
+from pm4pyExtension.algo.discovery.efig import DEFAULT_HALF_LIFE_DAYS, get_eventually_follows_in_days_graph
 from pm4pyExtension.algo.normalize.normalizeDG import source_normalize_dfg, target_normalize_dfg
 from pm4pyExtension.algo.reduction.reduceDG import max_path_denoise_dfg, minthreshold_dfg
 
@@ -13,11 +14,11 @@ def normalize_dfg_to(dfg, normalize_to = "source"):
     else:
         raise ValueError("normalize_to must be 'source' or 'target'")
 
-def make_efig(event_log, show=True, daysFollow=3, normalize = False, normalize_to = "target", minThresh = 0., max_path_denoise=False):
-    efg = get_eventually_follows_in_days_graph(event_log, daysFollow)
-    
-    if normalize:
-        efg = normalize_dfg_to(efg, normalize_to)
+def make_efig(event_log, show=True, daysFollow=3, normalize = False, normalize_to = "target", minThresh = 0., max_path_denoise=False, *,
+              time_decay=False, half_life_days=DEFAULT_HALF_LIFE_DAYS):
+    efg = get_eventually_follows_in_days_graph(event_log, daysFollow, time_decay=time_decay,
+                                              half_life_days=half_life_days,
+                                              normalize_to=normalize_to if normalize else None)
 
     if max_path_denoise:
         efg = max_path_denoise_dfg(efg)      
@@ -25,7 +26,7 @@ def make_efig(event_log, show=True, daysFollow=3, normalize = False, normalize_t
     if minThresh > 0.:
         efg = minthreshold_dfg(efg, minThresh)
 
-    if show:
+    if show and efg:
         pm4py.view_dfg(efg, start_activities=None, end_activities=None, format='png')
     return efg    
 
@@ -35,36 +36,32 @@ def make_dfg(event_log, minThresh = 1,
             normalize = False, normalize_to = "target",
             start_end_emphasis=2):
     
+    if isinstance(event_log, DataFrame) and len(event_log) == 0:
+        return {}
     dfg, start_activities, end_activities = pm4py.discover_dfg(event_log)
     
     if normalize:
         dfg = normalize_dfg_to(dfg, normalize_to)
 
-    print(start_activities.keys())
-
     if show_start_end:
-        start_activity = next(iter(start_activities))
-        end_activitity = next(iter(end_activities))
-        save_start_end = {}
-        for (act1,act2), val in dfg.items():
-            if act1 == start_activity:
-                save_start_end[(act1,act2)] = val
-            elif act2 == end_activitity:
-                save_start_end[(act1,act2)] = val
-    
-    if max_path_denoise:
-        dfg = max_path_denoise_dfg(dfg)      
+        if start_end_emphasis <= 0:
+            raise ValueError("start_end_emphasis must be positive")
+        endpoint_threshold = minThresh / start_end_emphasis
+        endpoint_edges = {
+            (source, target): weight
+            for (source, target), weight in dfg.items()
+            if (source in start_activities or target in end_activities)
+            and (not max_path_denoise or source != target)
+            and weight >= endpoint_threshold
+        }
 
+    if max_path_denoise:
+        dfg = max_path_denoise_dfg(dfg)
 
     dfg = minthreshold_dfg(dfg, minThresh)
-
-
-
     if show_start_end:
-        for (act1,act2), val in save_start_end.items():
-            if val >= minThresh/start_end_emphasis:
-                dfg[(act1,act2)] = val
-    if show:
+        dfg.update(endpoint_edges)
+    if show and dfg:
         if show_start_end:
             pm4py.view_dfg(dfg, start_activities=start_activities, end_activities=end_activities, format='png')
         else:

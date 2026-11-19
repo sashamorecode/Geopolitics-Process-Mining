@@ -16,49 +16,36 @@ def code2text_Pheonix(event_log):
     event_log['root_code_text'] = event_log['root_code'].apply(translate)    
     return event_log
 
-def preprocess(event_log, key="empty", remove_activity_keys=[], start_date="1780-01-01", end_date="1780-01-01"):
-    #end_date = pandas.to_datetime(end_date, utc=True)
-
-    #remove activities
-    if len(remove_activity_keys) > 0:
-        for code_key in remove_activity_keys:
-            event_log = event_log[event_log.root_code != code_key]
-            print(event_log["root_code"])
-            
-    #extract root country
-    event_log["source_root"] = event_log["source"].apply(lambda x : x[0:3])
-    event_log["target_root"] = event_log["target"].apply(lambda x : x[0:3])
-    #create conflict_id
+def preprocess(event_log, key="empty", remove_activity_keys=(), start_date=None, end_date=None):
+    event_log = event_log.loc[~event_log["root_code"].isin(remove_activity_keys)].copy()
+    event_log["source_root"] = event_log["source"].str[:3]
+    event_log["target_root"] = event_log["target"].str[:3]
     event_log["conflict_id"] = event_log["source_root"] + event_log["target_root"]
-    #select conflict
     if key != "empty":
-        event_log = event_log[event_log.conflict_id == key]
-    
+        event_log = event_log.loc[event_log["conflict_id"] == key].copy()
+    event_log = extract_time_range(event_log, start_date, end_date)
 
-    #event_log = event_log[event_log.source == "DDR"]
-    #order by date
-    event_log = event_log.sort_values(by=['story_date'])
-    #decode codes
-    
     event_log = code2text_Pheonix(event_log)
-    if start_date != end_date:
-        event_log = extract_time_range(event_log, start_date, end_date)
-    #format to pm4py
-    
-    event_log = pm4py.format_dataframe(event_log, case_id='conflict_id', activity_key='root_code_text', timestamp_key='story_date')
+    return pm4py.format_dataframe(
+        event_log, case_id="conflict_id", activity_key="root_code_text", timestamp_key="story_date"
+    )
 
-
-    return event_log
 
 def import_csv(file_path):
     event_log = pandas.read_csv(file_path, sep=',')
     return event_log 
 
-def extract_time_range(event_log, start_date, end_date):
-    start_date += " 00:00:00"
-    end_date += " 00:00:00"
-    start_date = pandas.to_datetime(start_date, utc=True)
-    end_date = pandas.to_datetime(end_date, utc=True)
-    event_log["story_date"] = pandas.to_datetime(event_log["story_date"] , utc=True)
-    event_log = event_log[(event_log.story_date >= start_date) & (event_log.story_date <= end_date)]
-    return event_log
+def extract_time_range(event_log, start_date=None, end_date=None):
+    """Select events on or between the supplied UTC calendar dates."""
+    try:
+        dates = pandas.to_datetime(event_log["story_date"], utc=True)
+    except ValueError:
+        # pandas 2+ infers a single format by default, even for mixed ISO dates and timestamps.
+        dates = pandas.to_datetime(event_log["story_date"], format="mixed", utc=True)
+    selected = dates.notna()
+    if start_date is not None:
+        selected &= dates >= pandas.to_datetime(start_date, utc=True).normalize()
+    if end_date is not None:
+        end_day = pandas.to_datetime(end_date, utc=True).normalize()
+        selected &= dates < end_day + pandas.Timedelta(days=1)
+    return event_log.loc[selected].assign(story_date=dates[selected])
